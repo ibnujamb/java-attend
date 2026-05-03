@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
-from datetime import time
+from datetime import time, datetime
 import calendar
 import io
 
 # --- LOGIKA PERHITUNGAN TETAP SAMA ---
 def hitung_durasi_keterlambatan(teks, tanggal, bulan, tahun):
     try:
+        # Fungsi ini sekarang menggunakan bulan dan tahun yang dinamis sesuai input
         hari_ke = calendar.weekday(tahun, bulan, tanggal)
         if hari_ke == 6: return None 
     except: return None
@@ -28,6 +29,21 @@ st.set_page_config(page_title="JAVA Attend", page_icon="🌐")
 st.title("🌐 JAVA Attend")
 st.subheader("Javanet Attendance Log Processor")
 
+# --- MODIFIKASI: PEMILIHAN PERIODE OTOMATIS & MANUAL ---
+now = datetime.now()
+col1, col2 = st.columns(2)
+
+with col1:
+    bulan_pilihan = st.selectbox(
+        "Pilih Bulan Laporan", 
+        range(1, 13), 
+        index=now.month - 1, 
+        format_func=lambda x: calendar.month_name[x]
+    )
+
+with col2:
+    tahun_pilihan = st.number_input("Pilih Tahun", min_value=2024, max_value=2030, value=now.year)
+
 uploaded_file = st.file_uploader("Pilih file log fingerprint (.xls / .xlsx)", type=["xls", "xlsx"])
 
 if uploaded_file is not None:
@@ -45,7 +61,8 @@ if uploaded_file is not None:
                 total = 0
                 for idx, jam_str in enumerate(log_absensi):
                     tgl = idx + 1
-                    menit = hitung_durasi_keterlambatan(jam_str, tgl, 4, 2026)
+                    # Menggunakan variabel bulan dan tahun pilihan user
+                    menit = hitung_durasi_keterlambatan(jam_str, tgl, bulan_pilihan, tahun_pilihan)
                     entry[tgl] = menit
                     if menit is not None: total += menit
                 entry['Total Menit'] = total
@@ -58,11 +75,11 @@ if uploaded_file is not None:
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 report_final.to_excel(writer, index=False, sheet_name='Rekap')
             
-            st.success("Berhasil diproses!")
+            st.success(f"Berhasil diproses untuk periode {calendar.month_name[bulan_pilihan]} {tahun_pilihan}!")
             st.download_button(
                 label="📥 Download Hasil Rekap",
                 data=output.getvalue(),
-                file_name="REKAP_JAVA_ATTEND.xlsx",
+                file_name=f"REKAP_JAVA_ATTEND_{calendar.month_name[bulan_pilihan]}_{tahun_pilihan}.xlsx",
                 mime="application/vnd.ms-excel"
             )
         except Exception as e:
